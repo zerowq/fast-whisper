@@ -1,0 +1,40 @@
+image: docker:latest  # this sets default image for jobs
+services:
+  - docker:dind
+
+cache:
+  paths:
+    - .m2/repository
+
+stages:
+# 如果需要，请打开代码检查
+#  - sonarqube-check
+  - build
+
+#include:
+#  - ".sonarqube-ci.yml"
+
+variables:
+  CONTAINER_TAG: ${CI_COMMIT_SHORT_SHA}
+  DOCKER_DRIVER: overlay2
+  DOCKER_REGISTRY: public.ecr.aws/i1v5c3z5
+  DOCKER_TLS_CERTDIR: ""
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+build:
+  stage: build
+#  needs: [sonarqube-check]
+#  可以设置那个分支触发
+#  only:
+#     - aws_test
+#    - main
+#    - tags
+  image:
+    name: evyd/base-ci-build:ci-build01
+    entrypoint: [""]
+  script:
+    - chmod +x ci/aws-build.sh
+    - ./ci/aws-build.sh
+  artifacts:
+    paths:
+      - ${DOCKER_REGISTRY}/irobot/be/chatbot-guardrails:${CONTAINER_TAG}
