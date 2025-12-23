@@ -1,0 +1,14 @@
+[project]
+name = "faster-whisper-service"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.127.0",
+    "faster-whisper>=1.2.1",
+    "numpy>=2.2.6",
+    "python-multipart>=0.0.21",
+    "requests>=2.32.5",
+    "uvicorn>=0.40.0",
+]
