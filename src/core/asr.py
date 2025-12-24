@@ -13,7 +13,8 @@ class ASRService:
             self.model = WhisperModel(
                 self.model_path, 
                 device=self.device, 
-                compute_type=actual_compute_type
+                compute_type=actual_compute_type,
+                local_files_only=True  # 强制只使用本地文件，禁止联网 / Force only local files
             )
         except Exception as e:
             if self.device == "cuda":
@@ -23,7 +24,8 @@ class ASRService:
                 self.model = WhisperModel(
                     self.model_path,
                     device="cpu",
-                    compute_type="int8"
+                    compute_type="int8",
+                    local_files_only=True # 强制只使用本地文件，禁止联网 / Force only local files
                 )
             else:
                 raise e
