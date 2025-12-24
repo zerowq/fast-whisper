@@ -8,13 +8,22 @@ class ASRService:
         self.compute_type = compute_type
         self.model = None
 
+    def load_model(self):
+        if not os.path.exists(self.model_path):
+            raise FileNotFoundError(f"Offline model not found at {self.model_path}")
+        
+        # CPU doesn't support float16, use int8 or float32
+        actual_compute_type = self.compute_type
+        if self.device == "cpu" and self.compute_type == "float16":
+            actual_compute_type = "int8"
+            
         print(f"Loading Faster-Whisper model from {self.model_path} on {self.device} ({actual_compute_type})...")
         try:
             self.model = WhisperModel(
                 self.model_path, 
                 device=self.device, 
                 compute_type=actual_compute_type,
-                local_files_only=True  # 强制只使用本地文件，禁止联网 / Force only local files
+                local_files_only=True
             )
         except Exception as e:
             if self.device == "cuda":
@@ -25,7 +34,7 @@ class ASRService:
                     self.model_path,
                     device="cpu",
                     compute_type="int8",
-                    local_files_only=True # 强制只使用本地文件，禁止联网 / Force only local files
+                    local_files_only=True
                 )
             else:
                 raise e
