@@ -31,7 +31,7 @@ COPY models /app/models
 COPY src /app/src
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 8080
 
 # Start the service using the modular entry point
 CMD ["python3", "-m", "src.main"]

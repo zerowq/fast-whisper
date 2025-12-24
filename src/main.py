@@ -6,7 +6,6 @@ import os
 from contextlib import asynccontextmanager
 
 # Configuration from environment or defaults
-# Updated: Default to ./models as per recent download results
 MODEL_PATH = os.getenv("MODEL_PATH", "./models")
 DEVICE = os.getenv("DEVICE", "cuda")
 COMPUTE_TYPE = os.getenv("COMPUTE_TYPE", "float16")
@@ -29,4 +28,5 @@ app = FastAPI(title="Faster-Whisper ASR Service", lifespan=lifespan)
 app.include_router(api_router.router, tags=["ASR"])
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8899)
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
