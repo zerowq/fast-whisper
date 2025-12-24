@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 import shutil
 import os
-import requests
+import urllib.request
 import uuid
 import time
 from src.core.asr import ASRService
@@ -15,17 +15,22 @@ def download_remote_file(url: str):
     temp_file = f"remote_{uuid.uuid4()}.tmp"
     try:
         print(f"DEBUG: Downloading remote file from {url}...")
-        with requests.get(url, stream=True, timeout=30) as r:
-            r.raise_for_status()
+        # Use urllib.request instead of requests
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=30) as response:
             with open(temp_file, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
+                # Read in chunks
+                while True:
+                    chunk = response.read(8192)
+                    if not chunk:
+                        break
                     f.write(chunk)
         print(f"DEBUG: Remote file downloaded to {temp_file}")
         return temp_file
     except Exception as e:
         if os.path.exists(temp_file):
             os.remove(temp_file)
-        raise HTTPException(status_code=400, detail=f"Failed to download remote file: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to download remote file via urllib: {str(e)}")
 
 @router.post("/transcribe")
 async def transcribe(
