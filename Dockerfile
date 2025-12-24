@@ -6,7 +6,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive \
     PYTHONPATH=/app \
-    MODEL_PATH=/app/models
+    MODEL_PATH=/app/models \
+    PORT=8080 \
+    ROOT_PATH=""
 
 # Install system dependencies (ffmpeg is essential for whisper)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,6 +32,7 @@ COPY models /app/models
 
 # Copy the application source code
 COPY src /app/src
+COPY static /app/static
 
 # Expose the API port
 EXPOSE 8080

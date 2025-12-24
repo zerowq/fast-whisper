@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from src.api import router as api_router
 from src.core.asr import ASRService
 import os
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 # Configuration from environment or defaults
@@ -24,8 +25,21 @@ async def lifespan(app: FastAPI):
     # Shutdown logic (optional)
     print("Shutting down ASR service...")
 
-app = FastAPI(title="Faster-Whisper ASR Service", lifespan=lifespan)
+# Read root path from environment (for reverse proxy sub-paths)
+ROOT_PATH = os.getenv("ROOT_PATH", "")
+
+app = FastAPI(
+    title="Faster-Whisper ASR Service", 
+    lifespan=lifespan,
+    root_path=ROOT_PATH
+)
 app.include_router(api_router.router, tags=["ASR"])
+
+# Mount static files
+static_dir = os.path.join(os.getcwd(), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))

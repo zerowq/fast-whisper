@@ -53,6 +53,10 @@ docker logs asr-service | grep "Model loaded successfully"
 python3 scripts/test_api.py path/to/audio_sample.wav
 ```
 
+### 3.3 Access Test Page / 访问测试页面
+Access the built-in GUI via browser. / 通过浏览器访问内置测试页面。
+- **URL**: `http://<SERVER_IP>:8080/`
+
 ---
 
 ## 4. Domain & Network / 域名配置
