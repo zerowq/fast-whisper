@@ -7,17 +7,20 @@ class ASRService:
         self.device = device
         self.compute_type = compute_type
         self.model = None
+        # 注意：__init__ 内部现在没有任何打印或逻辑，绝对不会报 UnboundLocalError
 
     def load_model(self):
+        """延迟加载模型，支持 CUDA 到 CPU 的降级"""
         if not os.path.exists(self.model_path):
             raise FileNotFoundError(f"Offline model not found at {self.model_path}")
         
-        # CPU doesn't support float16, use int8 or float32
+        # 确定计算类型
         actual_compute_type = self.compute_type
         if self.device == "cpu" and self.compute_type == "float16":
             actual_compute_type = "int8"
             
-        print(f"Loading Faster-Whisper model from {self.model_path} on {self.device} ({actual_compute_type})...")
+        print(f"DEBUG: Trying to load model on {self.device} with {actual_compute_type}...")
+        
         try:
             self.model = WhisperModel(
                 self.model_path, 
@@ -27,9 +30,8 @@ class ASRService:
             )
         except Exception as e:
             if self.device == "cuda":
-                print(f"Warning: Failed to load model on CUDA: {e}. Falling back to CPU...")
+                print(f"Warning: CUDA Failed ({e}). Falling back to CPU...")
                 self.device = "cpu"
-                actual_compute_type = "int8"
                 self.model = WhisperModel(
                     self.model_path,
                     device="cpu",
@@ -38,7 +40,7 @@ class ASRService:
                 )
             else:
                 raise e
-        print(f"Model loaded successfully on {self.device}.")
+        print(f"SUCCESS: Model loaded on {self.device}.")
 
     def transcribe(self, audio_path: str):
         if self.model is None:
