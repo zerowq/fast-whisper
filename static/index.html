@@ -44,6 +44,7 @@
             font-size: 3rem;
             background: linear-gradient(135deg, #818cf8, #c084fc);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
         }
@@ -281,7 +282,12 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('transcribe', {
+                // Dynamically calculate API path to support sub-folders like /faster-whisper
+                const currentPath = window.location.pathname.replace(/\/$/, '');
+                const apiUrl = currentPath + '/transcribe';
+                console.log('Fetching from:', apiUrl);
+
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     body: formData
                 });
