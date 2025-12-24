@@ -4,3 +4,5 @@ faster-whisper
 python-multipart
 pydantic
 numpy
+psutil
+pynvml
