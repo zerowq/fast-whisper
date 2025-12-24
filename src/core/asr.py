@@ -8,22 +8,26 @@ class ASRService:
         self.compute_type = compute_type
         self.model = None
 
-    def load_model(self):
-        if not os.path.exists(self.model_path):
-            raise FileNotFoundError(f"Offline model not found at {self.model_path}")
-        
-        # CPU doesn't support float16, use int8 or float32
-        actual_compute_type = self.compute_type
-        if self.device == "cpu" and self.compute_type == "float16":
-            actual_compute_type = "int8"
-            
         print(f"Loading Faster-Whisper model from {self.model_path} on {self.device} ({actual_compute_type})...")
-        self.model = WhisperModel(
-            self.model_path, 
-            device=self.device, 
-            compute_type=actual_compute_type
-        )
-        print("Model loaded successfully.")
+        try:
+            self.model = WhisperModel(
+                self.model_path, 
+                device=self.device, 
+                compute_type=actual_compute_type
+            )
+        except Exception as e:
+            if self.device == "cuda":
+                print(f"Warning: Failed to load model on CUDA: {e}. Falling back to CPU...")
+                self.device = "cpu"
+                actual_compute_type = "int8"
+                self.model = WhisperModel(
+                    self.model_path,
+                    device="cpu",
+                    compute_type="int8"
+                )
+            else:
+                raise e
+        print(f"Model loaded successfully on {self.device}.")
 
     def transcribe(self, audio_path: str):
         if self.model is None:

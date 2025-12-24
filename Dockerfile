@@ -21,7 +21,8 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 # IMPORTANT: Copy the pre-downloaded models into the image
 # This ensures total offline capability in the GPU environment
