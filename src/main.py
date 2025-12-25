@@ -33,7 +33,7 @@ app = FastAPI(
     lifespan=lifespan,
     root_path=ROOT_PATH
 )
-app.include_router(api_router.router, prefix="/api", tags=["ASR"])
+app.include_router(api_router.router, tags=["ASR"])
 
 # Mount static files
 static_dir = os.path.join(os.getcwd(), "static")
