@@ -151,9 +151,10 @@ class ASRService:
         try:
             # 尝试加载模型
             self.model = WhisperModel(
-                self.model_path, 
+                self.model_size, 
                 device=device, 
                 compute_type=compute_type,
+                model_dir=self.model_path,
                 local_files_only=True
             )
             
@@ -171,9 +172,10 @@ class ASRService:
                 logger.info("尝试降级到 CPU...")
                 try:
                     self.model = WhisperModel(
-                        self.model_path,
+                        self.model_size,
                         device="cpu",
                         compute_type="int8",
+                        model_dir=self.model_path,
                         local_files_only=True
                     )
                     
