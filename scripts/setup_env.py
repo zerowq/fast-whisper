@@ -110,7 +110,8 @@ def check_dependencies():
     
     if missing_deps:
         print(f"❌ 缺少依赖项: {missing_deps}")
-        print("请运行: pip install -r requirements.txt")
+        print("请运行: uv sync  # 使用 UV 包管理器")
+        print("或: pip install -r requirements.txt  # 使用 pip")
         return False
     
     print("✅ 所有依赖项已安装")

@@ -39,17 +39,31 @@ class ModelVerifier:
             logger.error(f"❌ 模型目录不存在: {self.model_path}")
             return False
         
-        required_files = ["config.json", "model.bin", "tokenizer.json", "vocabulary.json"]
-        missing_files = []
+        # Faster-Whisper 使用 HuggingFace 格式，关键文件包括
+        # config.json, tokenizer.json, model.bin (或 .safetensors)
+        required_files = ["config.json", "tokenizer.json"]
+        optional_files = ["model.bin", "model.safetensors", "vocabulary.json"]
+        missing_required = []
+        has_model = False
         
         for file in required_files:
             file_path = os.path.join(self.model_path, file)
             if not os.path.exists(file_path):
-                missing_files.append(file)
+                missing_required.append(file)
         
-        if missing_files:
-            logger.error(f"❌ 缺少模型文件: {missing_files}")
-            logger.info("请运行: python scripts/download_models.py --size base")
+        for file in optional_files:
+            file_path = os.path.join(self.model_path, file)
+            if os.path.exists(file_path):
+                has_model = True
+                break
+        
+        if missing_required or not has_model:
+            if missing_required:
+                logger.error(f"❌ 缺少必需的模型文件: {missing_required}")
+            if not has_model:
+                logger.error(f"❌ 缺少模型权重文件 (model.bin 或 model.safetensors)")
+            logger.info("请运行: uv run python scripts/download_models.py --model-size base")
+            logger.info("或: python scripts/download_models.py --model-size base")
             return False
         
         logger.info("✅ 模型文件验证通过")

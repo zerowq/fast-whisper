@@ -23,10 +23,11 @@ logger = logging.getLogger(__name__)
 class FinalVerifier:
     """最终验证器"""
     
-    def __init__(self, host: str = "localhost", port: int = 8080):
+    def __init__(self, host: str = "localhost", port: int = None):
         self.host = host
-        self.port = port
-        self.base_url = f"http://{host}:{port}"
+        # 从环境变量读取端口，默认 8898
+        self.port = port or int(os.getenv("PORT", "8898"))
+        self.base_url = f"http://{host}:{self.port}"
         self.server_process = None
         self.server_ready = False
         
@@ -307,7 +308,7 @@ class FinalVerifier:
             logger.info("")
             logger.info("📋 功能确认:")
             logger.info("  ✅ 服务能够启动 (`python -m src.main`)")
-            logger.info("  ✅ 监控指标可访问 (`curl http://localhost:8080/metrics`)")
+            logger.info(f"  ✅ 监控指标可访问 (`curl http://localhost:{self.port}/metrics`)")
             logger.info("  ✅ 音频转录功能正常")
             logger.info("  ✅ Base 模型 (74M参数) 正常工作")
             logger.info("  ✅ 资源监控功能正常")
@@ -333,8 +334,8 @@ def main():
     parser.add_argument(
         "--port",
         type=int,
-        default=8080,
-        help="服务器端口 (默认: 8080)"
+        default=None,
+        help="服务器端口 (默认: 从 PORT 环境变量或 8898)"
     )
     
     args = parser.parse_args()

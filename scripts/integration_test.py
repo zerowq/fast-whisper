@@ -22,11 +22,12 @@ logger = logging.getLogger(__name__)
 class IntegrationTester:
     """集成测试器"""
     
-    def __init__(self, host: str = "localhost", port: int = 8080, timeout: int = 60):
+    def __init__(self, host: str = "localhost", port: int = None, timeout: int = 60):
         self.host = host
-        self.port = port
+        # 从环境变量读取端口，默认 8898
+        self.port = port or int(os.getenv("PORT", "8898"))
         self.timeout = timeout
-        self.base_url = f"http://{host}:{port}"
+        self.base_url = f"http://{host}:{self.port}"
         self.server_process = None
         self.server_ready = False
         
@@ -305,8 +306,8 @@ def main():
     parser.add_argument(
         "--port",
         type=int,
-        default=8080,
-        help="服务器端口 (默认: 8080)"
+        default=None,
+        help="服务器端口 (默认: 从 PORT 环境变量或 8898)"
     )
     parser.add_argument(
         "--timeout",
