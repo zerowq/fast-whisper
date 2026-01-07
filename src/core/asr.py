@@ -77,7 +77,7 @@ class ASRService:
         device = self.device
         compute_type = self.compute_type
         
-        # 自动设备选择
+        # 自动设备选择（仅当 device="auto" 时）
         if device == "auto":
             try:
                 import torch
@@ -90,8 +90,11 @@ class ASRService:
             except ImportError:
                 device = "cpu"
                 logger.info("PyTorch 未安装，使用 CPU")
+        else:
+            # 用户明确指定了设备，尊重用户选择
+            logger.info(f"使用用户指定的设备: {device}")
         
-        # 自动计算类型选择
+        # 自动计算类型选择（仅当 compute_type="auto" 时）
         if compute_type == "auto":
             if device == "cuda":
                 compute_type = "float16"  # GPU 使用 float16
