@@ -7,7 +7,6 @@ import sys
 import time
 import logging
 from pathlib import Path
-from tabulate import tabulate
 
 # 添加 src 到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -116,36 +115,38 @@ class PerformanceBenchmark:
         
         # 打印表格
         if self.results:
-            print("\n" + "=" * 100)
+            print("\n" + "=" * 150)
             print("📈 性能基准测试结果\n")
             
+            # 手动格式化表格
             headers = [
-                "文件名",
-                "文件大小(MB)",
-                "音频时长(s)",
-                "转录耗时(s)",
-                "实时因子(RTF)",
-                "CPU占用",
-                "内存占用",
-                "GPU内存占用",
-                "转录文本预览"
+                "文件名", "文件大小(MB)", "音频时长(s)", "转录耗时(s)", "实时因子(RTF)",
+                "CPU占用", "内存占用", "GPU内存占用", "转录文本预览"
             ]
+            col_widths = [20, 15, 15, 15, 15, 12, 12, 15, 50]
             
-            print(tabulate(
-                [[
-                    r["filename"],
-                    r["size_mb"],
-                    r["duration_s"],
-                    r["transcription_time_s"],
-                    r["rtf"],
-                    r["cpu_usage"],
-                    r["memory_usage"],
-                    r["gpu_memory"],
-                    r["text_preview"]
-                ] for r in self.results],
-                headers=headers,
-                tablefmt="grid"
-            ))
+            # 打印表头
+            header_line = " | ".join(h.ljust(w) for h, w in zip(headers, col_widths))
+            print(header_line)
+            print("-" * 150)
+            
+            # 打印数据行
+            for r in self.results:
+                row_data = [
+                    r["filename"][:20],
+                    r["size_mb"][:15],
+                    r["duration_s"][:15],
+                    r["transcription_time_s"][:15],
+                    r["rtf"][:15],
+                    r["cpu_usage"][:12],
+                    r["memory_usage"][:12],
+                    r["gpu_memory"][:15],
+                    r["text_preview"][:50]
+                ]
+                row_line = " | ".join(d.ljust(w) for d, w in zip(row_data, col_widths))
+                print(row_line)
+            
+            print("-" * 150)
             
             # 统计信息
             print("\n📊 统计信息:")
