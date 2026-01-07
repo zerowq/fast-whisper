@@ -142,18 +142,12 @@ dmypy.json
 .pyre/
 
 # 模型文件 - 太大无法提交到 Git
-# models/*.safetensors
-# models/*.onnx
-# models/*.bin
-# models/model.onnx
-# models/model_quantized.onnx
-# models/model.safetensors
-# models/pytorch_model.bin
+models/
+!models/.gitkeep
 
 # Hugging Face 缓存目录
-models/.cache/
-models/.locks/
-models/models--*/
+.cache/
+.locks/
 
 # 其他大文件
 *.tar.gz
