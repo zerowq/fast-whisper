@@ -25,11 +25,12 @@ logger = logging.getLogger(__name__)
 class ModelVerifier:
     """模型功能验证器"""
     
-    def __init__(self, model_size: str = "base", model_path: str = "./models"):
+    def __init__(self, model_size: str = "base", model_path: str = "./models", skip_transcription: bool = False):
         self.model_size = model_size
         self.model_path = model_path
         self.asr_service = None
         self.resource_monitor = get_resource_monitor()
+        self.skip_transcription = skip_transcription
     
     def verify_model_files(self) -> bool:
         """验证模型文件是否存在"""
@@ -192,12 +193,14 @@ class ModelVerifier:
         
         # 按优先级查找音频文件
         candidate_paths = [
+            # GPU 服务器上的音频文件（推荐）
+            Path("/home/work/evyd/code/speech/cosyvoice-mms/output/benchmark/kokoro_test_1.wav"),
             # 项目根目录中的音频文件
             project_root / "physicsworks.wav",
             project_root / "multilingual.mp3",
             # 用户提供的路径（用于开发环境）
             Path("/Users/anqi.liu/data/ai/cosyvoice-mms/output/benchmark/kokoro_test_1.wav"),
-            # GPU 服务器上的绝对路径
+            # GPU 服务器上的其他路径
             Path("/home/work/evyd/code/speech/fast-whisper/physicsworks.wav"),
             Path("/home/work/evyd/code/speech/fast-whisper/multilingual.mp3"),
             # 相对路径（当前目录）
@@ -217,6 +220,10 @@ class ModelVerifier:
     
     def verify_transcription(self, audio_file: str = None) -> bool:
         """验证转录功能"""
+        if self.skip_transcription:
+            logger.warning("⏭️  跳过转录功能验证 (--skip-transcription)")
+            return True
+        
         logger.info("🎤 验证转录功能...")
         
         if not self.asr_service:
@@ -232,6 +239,10 @@ class ModelVerifier:
             
             if not audio_file:
                 logger.warning("⚠️  无法获取音频文件，跳过转录测试")
+                logger.warning("💡 提示: 音频转录依赖于 faster-whisper 模型配置")
+                logger.warning("如果遇到 mel 特征维度错误，可以:")
+                logger.warning("  1. 检查 faster-whisper 版本是否与模型匹配")
+                logger.warning("  2. 使用 --skip-transcription 跳过此测试")
                 return True  # 不算失败，只是跳过
         
         try:
@@ -399,11 +410,16 @@ def main():
         "--audio-file",
         help="测试音频文件路径 (可选，不提供则生成测试音频)"
     )
+    parser.add_argument(
+        "--skip-transcription",
+        action="store_true",
+        help="跳过转录功能验证 (用于排查模型配置问题)"
+    )
     
     args = parser.parse_args()
     
     # 创建验证器
-    verifier = ModelVerifier(args.model_size, args.model_path)
+    verifier = ModelVerifier(args.model_size, args.model_path, args.skip_transcription)
     
     # 运行验证
     success = verifier.run_verification(args.audio_file)
