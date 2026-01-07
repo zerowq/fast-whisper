@@ -153,3 +153,5 @@ models/
 *.tar.gz
 *.zip
 *.7z
+models/*.bin
+models/model.bin
