@@ -187,20 +187,30 @@ class ModelVerifier:
     
     def find_real_audio_file(self) -> str:
         """查找真实的音频文件用于测试"""
+        # 获取项目根目录
+        project_root = Path(__file__).parent.parent
+        
         # 按优先级查找音频文件
         candidate_paths = [
-            # 用户提供的路径
-            "/Users/anqi.liu/data/ai/cosyvoice-mms/output/benchmark/kokoro_test_1.wav",
-            "/home/work/evyd/code/speech/fast-whisper/multilingual.mp3",
-            "/home/work/evyd/code/speech/fast-whisper/physicsworks.wav",
-            "./multilingual.mp3",
-            "./physicsworks.wav",
+            # 项目根目录中的音频文件
+            project_root / "physicsworks.wav",
+            project_root / "multilingual.mp3",
+            # 用户提供的路径（用于开发环境）
+            Path("/Users/anqi.liu/data/ai/cosyvoice-mms/output/benchmark/kokoro_test_1.wav"),
+            # GPU 服务器上的绝对路径
+            Path("/home/work/evyd/code/speech/fast-whisper/physicsworks.wav"),
+            Path("/home/work/evyd/code/speech/fast-whisper/multilingual.mp3"),
+            # 相对路径（当前目录）
+            Path("./physicsworks.wav"),
+            Path("./multilingual.mp3"),
         ]
         
         for path in candidate_paths:
-            if os.path.exists(path):
+            if isinstance(path, str):
+                path = Path(path)
+            if path.exists():
                 logger.info(f"✅ 找到真实音频文件: {path}")
-                return path
+                return str(path)
         
         logger.warning("⚠️  未找到预配置的音频文件")
         return None
