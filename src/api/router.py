@@ -6,6 +6,7 @@ import uuid
 import time
 import logging
 from src.core.asr import ASRService
+from src.core.resource_monitor import get_resource_monitor
 import psutil
 from collections import deque
 from typing import Optional
@@ -37,7 +38,19 @@ async def health_check():
     Returns:
         dict: A dictionary indicating the service status.
     """
-    status = {"status": "ok", "service": "Faster-Whisper ASR"}
+    # 获取资源监控器实例
+    resource_monitor = get_resource_monitor()
+    health_status = resource_monitor.get_health_status()
+    
+    status = {
+        "status": "ok", 
+        "service": "Faster-Whisper ASR",
+        "timestamp": health_status["timestamp"],
+        "health": {
+            "overall_status": health_status["status"],
+            "warnings": health_status["warnings"]
+        }
+    }
     
     # 检查 ASR 服务状态
     if asr_service is not None:
@@ -49,6 +62,10 @@ async def health_check():
         })
     else:
         status["model_loaded"] = False
+        
+    # 如果有资源警告，调整整体状态
+    if health_status["status"] == "warning":
+        status["status"] = "warning"
         
     return status
 
@@ -104,37 +121,87 @@ async def get_metrics():
     """
     Metrics Endpoint
     
-    Provides GPU/Memory/Inference Latency metrics and model information.
+    Provides comprehensive system metrics including GPU/CPU/Memory usage,
+    inference latency metrics, and model information using the integrated resource monitor.
     """
+    # 获取资源监控器实例
+    resource_monitor = get_resource_monitor()
+    
+    # 获取详细的资源指标
+    resource_metrics = resource_monitor.get_metrics_dict()
+    system_info = resource_monitor.get_system_info()
+    health_status = resource_monitor.get_health_status()
+    
+    # 构建综合指标响应
     metrics = {
-        "cpu_usage_percent": psutil.cpu_percent(),
-        "memory": {
-            "total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
-            "available_gb": round(psutil.virtual_memory().available / (1024**3), 2),
-            "used_percent": psutil.virtual_memory().percent,
+        # 系统基本信息
+        "system": {
+            "platform": system_info["platform"],
+            "cpu_count": system_info["cpu_count"],
+            "cpu_count_logical": system_info["cpu_count_logical"],
+            "uptime_seconds": system_info["uptime_seconds"],
+            "python_version": system_info["python_version"]
         },
-        "gpu": [],
+        
+        # CPU 和内存指标 (使用资源监控器的数据)
+        "cpu_usage_percent": resource_metrics["cpu_percent"],
+        "memory": {
+            "total_mb": resource_metrics["memory_total_mb"],
+            "used_mb": resource_metrics["memory_used_mb"],
+            "used_percent": resource_metrics["memory_percent"],
+            "available_mb": resource_metrics["memory_total_mb"] - resource_metrics["memory_used_mb"]
+        },
+        
+        # GPU 指标 (使用资源监控器的数据)
+        "gpu": {
+            "available": resource_metrics["gpu_available"],
+            "memory_used_mb": resource_metrics["gpu_memory_used_mb"],
+            "memory_total_mb": resource_metrics["gpu_memory_total_mb"],
+            "memory_percent": resource_metrics["gpu_memory_percent"],
+            "utilization_percent": resource_metrics["gpu_utilization_percent"]
+        },
+        
+        # 磁盘和进程指标
+        "disk_usage_percent": resource_metrics["disk_usage_percent"],
+        "process_count": resource_metrics["process_count"],
+        
+        # 推理延迟指标 (保持原有功能)
         "inference_latency_ms": {
             "last_10_avg": round(sum(inference_latencies) / len(inference_latencies) * 1000, 2) if inference_latencies else 0,
             "last_10_samples": [round(l * 1000, 2) for l in inference_latencies]
-        }
+        },
+        
+        # 健康状态
+        "health": {
+            "status": health_status["status"],
+            "warnings": health_status["warnings"]
+        },
+        
+        # 时间戳
+        "timestamp": resource_metrics["timestamp"]
     }
     
-    # 添加模型信息
+    # 添加模型信息 (保持原有功能)
     if asr_service is not None:
         metrics["model"] = asr_service.get_model_info()
     
-    # GPU 信息
-    if is_gpu_available:
+    # 添加 GPU 名称信息
+    if resource_metrics["gpu_available"] and "gpu_name" in system_info:
+        metrics["gpu"]["name"] = system_info["gpu_name"]
+    
+    # 兼容性：保持原有的 GPU 数组格式 (向后兼容)
+    if resource_metrics["gpu_available"]:
         try:
+            import pynvml
             device_count = pynvml.nvmlDeviceGetCount()
+            gpu_array = []
             for i in range(device_count):
                 handle = pynvml.nvmlDeviceGetHandleByIndex(i)
                 mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
                 utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                metrics["gpu"].append({
+                gpu_array.append({
                     "device_id": i,
-                    "name": pynvml.nvmlDeviceGetName(handle),
+                    "name": pynvml.nvmlDeviceGetName(handle).decode('utf-8') if hasattr(pynvml.nvmlDeviceGetName(handle), 'decode') else str(pynvml.nvmlDeviceGetName(handle)),
                     "memory": {
                         "total_gb": round(mem_info.total / (1024**3), 2),
                         "used_gb": round(mem_info.used / (1024**3), 2),
@@ -145,8 +212,11 @@ async def get_metrics():
                         "memory": utilization.memory,
                     }
                 })
-        except pynvml.NVMLError as e:
-            metrics["gpu"].append({"error": f"Could not retrieve GPU metrics: {e}"})
+            metrics["gpu_devices"] = gpu_array  # 新的详细 GPU 信息
+        except Exception as e:
+            metrics["gpu_devices"] = [{"error": f"Could not retrieve detailed GPU metrics: {e}"}]
+    else:
+        metrics["gpu_devices"] = []
 
     return metrics
 

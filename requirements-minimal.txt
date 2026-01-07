@@ -1,3 +1,6 @@
+# Minimal production requirements for Faster-Whisper ASR Service
+# Use this for production deployments to minimize image size
+
 # Core FastAPI dependencies
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
@@ -6,7 +9,6 @@ python-multipart>=0.0.6
 # Whisper and ML dependencies
 faster-whisper>=1.0.0
 numpy>=1.24.0
-torch>=2.0.0
 
 # System monitoring
 psutil>=5.9.0
@@ -17,13 +19,3 @@ pydantic>=2.0.0
 
 # HTTP client for remote file downloads
 requests>=2.31.0
-
-# Optional: Testing dependencies (for development)
-pytest>=7.4.0
-hypothesis>=6.88.0
-
-# Optional: Environment variable support
-python-dotenv>=1.0.0
-
-# Optional: Enhanced logging
-colorlog>=6.7.0
