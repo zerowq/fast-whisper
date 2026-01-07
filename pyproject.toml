@@ -57,6 +57,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+# UV package manager configuration
+[tool.uv]
+# Python version constraint for the project
+python-version = "3.10"
+# Use Python 3.10+ for the virtual environment
+index-url = "https://pypi.org/simple/"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
