@@ -64,7 +64,7 @@ class ServiceConfig:
     compute_type: str = "auto"
     
     # 服务配置
-    port: int = 8080
+    port: int = 8898
     host: str = "0.0.0.0"
     log_level: str = "INFO"
     
@@ -348,7 +348,7 @@ DEVICE=auto                       # 设备: auto, cuda, cpu
 COMPUTE_TYPE=auto                 # 计算类型: auto, float16, int8
 
 # 服务配置
-PORT=8080                         # 服务端口
+PORT=8898                         # 服务端口
 HOST=0.0.0.0                     # 服务地址
 LOG_LEVEL=INFO                   # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 ROOT_PATH=                       # 根路径 (用于反向代理)
