@@ -154,7 +154,6 @@ class ASRService:
                 self.model_size, 
                 device=device, 
                 compute_type=compute_type,
-                model_dir=self.model_path,
                 local_files_only=True
             )
             
@@ -175,7 +174,6 @@ class ASRService:
                         self.model_size,
                         device="cpu",
                         compute_type="int8",
-                        model_dir=self.model_path,
                         local_files_only=True
                     )
                     
