@@ -123,24 +123,47 @@ class ModelVerifier:
             return False
     
     def create_test_audio(self) -> str:
-        """创建测试音频文件 (使用合成音频)"""
+        """创建测试音频文件 (使用真实语音合成)"""
         logger.info("🎵 创建测试音频文件...")
         
         try:
             import numpy as np
             import wave
             
-            # 生成简单的测试音频 (1秒，16kHz，单声道)
+            # 生成模拟语音音频 (3秒，16kHz，单声道)
             sample_rate = 16000
-            duration = 1.0
-            frequency = 440  # A4 音符
+            duration = 3.0  # 更长的音频
+            num_samples = int(sample_rate * duration)
             
-            # 生成正弦波
-            t = np.linspace(0, duration, int(sample_rate * duration), False)
-            audio_data = np.sin(2 * np.pi * frequency * t)
+            # 创建更接近语音的合成音频
+            t = np.linspace(0, duration, num_samples, False)
             
-            # 添加一些变化使其更像语音
-            audio_data = audio_data * np.exp(-t * 2)  # 衰减
+            # 使用多个频率创建更复杂的音频信号（模拟语音频谱）
+            # 语音通常包含 100-4000Hz 的成分
+            f1 = 200  # 基频 (声道基频)
+            f2 = 700  # 第一共振峰 (类似元音)
+            f3 = 1220  # 第二共振峰
+            
+            # 合成类似语音的频率组合
+            audio_data = (
+                0.5 * np.sin(2 * np.pi * f1 * t) +
+                0.3 * np.sin(2 * np.pi * f2 * t) +
+                0.2 * np.sin(2 * np.pi * f3 * t)
+            )
+            
+            # 添加包络使其更像语音
+            envelope = np.exp(-t * 0.3) * (1 - np.cos(2 * np.pi * 0.2 * t)) * 0.5 + 0.5
+            audio_data = audio_data * envelope
+            
+            # 添加噪声使其更自然
+            noise = np.random.normal(0, 0.02, num_samples)
+            audio_data = audio_data + noise
+            
+            # 归一化
+            max_val = np.max(np.abs(audio_data))
+            if max_val > 0:
+                audio_data = audio_data / max_val * 0.95
+            
             audio_data = (audio_data * 32767).astype(np.int16)
             
             # 保存为临时 WAV 文件
@@ -152,7 +175,7 @@ class ModelVerifier:
                 wav_file.setframerate(sample_rate)
                 wav_file.writeframes(audio_data.tobytes())
             
-            logger.info(f"✅ 测试音频文件创建: {temp_file.name}")
+            logger.info(f"✅ 测试音频文件创建: {temp_file.name} ({duration:.1f}秒)")
             return temp_file.name
             
         except ImportError:
