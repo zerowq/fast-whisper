@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 class PerformanceBenchmark:
     """性能基准测试器"""
     
-    def __init__(self):
-        self.asr_service = ASRService(model_size="base", model_path="./models", device="auto", compute_type="auto")
+    def __init__(self, device="cpu", compute_type="int8"):
+        self.asr_service = ASRService(model_size="base", model_path="./models", device=device, compute_type=compute_type)
         self.resource_monitor = get_resource_monitor()
         self.results = []
     
@@ -163,6 +163,14 @@ class PerformanceBenchmark:
 
 def main():
     """主函数"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="性能基准测试")
+    parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"], help="使用设备 (默认: cpu)")
+    parser.add_argument("--compute-type", default="int8", choices=["int8", "float16", "float32"], help="计算类型 (默认: int8)")
+    
+    args = parser.parse_args()
+    
     # 测试文件列表
     test_files = [
         "/home/work/evyd/code/speech/cosyvoice-mms/output/benchmark/kokoro_test_1.wav",
@@ -170,7 +178,7 @@ def main():
         "/home/work/evyd/code/speech/cosyvoice-mms/output/benchmark/kokoro_test_3.wav",
     ]
     
-    benchmark = PerformanceBenchmark()
+    benchmark = PerformanceBenchmark(device=args.device, compute_type=args.compute_type)
     benchmark.run_benchmark(test_files)
 
 if __name__ == "__main__":
