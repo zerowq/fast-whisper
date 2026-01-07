@@ -185,6 +185,26 @@ class ModelVerifier:
             logger.error(f"❌ 创建测试音频失败: {e}")
             return None
     
+    def find_real_audio_file(self) -> str:
+        """查找真实的音频文件用于测试"""
+        # 按优先级查找音频文件
+        candidate_paths = [
+            # 用户提供的路径
+            "/Users/anqi.liu/data/ai/cosyvoice-mms/output/benchmark/kokoro_test_1.wav",
+            "/home/work/evyd/code/speech/fast-whisper/multilingual.mp3",
+            "/home/work/evyd/code/speech/fast-whisper/physicsworks.wav",
+            "./multilingual.mp3",
+            "./physicsworks.wav",
+        ]
+        
+        for path in candidate_paths:
+            if os.path.exists(path):
+                logger.info(f"✅ 找到真实音频文件: {path}")
+                return path
+        
+        logger.warning("⚠️  未找到预配置的音频文件")
+        return None
+    
     def verify_transcription(self, audio_file: str = None) -> bool:
         """验证转录功能"""
         logger.info("🎤 验证转录功能...")
@@ -193,11 +213,15 @@ class ModelVerifier:
             logger.error("❌ ASR 服务未初始化")
             return False
         
-        # 如果没有提供音频文件，创建测试音频
+        # 如果没有提供音频文件，优先查找真实音频，再创建合成音频
         if not audio_file:
-            audio_file = self.create_test_audio()
+            audio_file = self.find_real_audio_file()
             if not audio_file:
-                logger.warning("⚠️  无法创建测试音频，跳过转录测试")
+                logger.info("未找到真实音频，尝试生成合成音频...")
+                audio_file = self.create_test_audio()
+            
+            if not audio_file:
+                logger.warning("⚠️  无法获取音频文件，跳过转录测试")
                 return True  # 不算失败，只是跳过
         
         try:
