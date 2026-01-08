@@ -96,7 +96,8 @@ class PerformanceReporter:
         except:
             duration = 0
         
-        # 记录开始 GPU 状态
+        # 记录开始 GPU 和 CPU 状态（等待稳定）
+        time.sleep(0.5)  # 等待状态稳定
         gpu_before = self.get_gpu_status()
         cpu_before = self.get_cpu_status()
         
@@ -116,18 +117,30 @@ class PerformanceReporter:
                 result = response.json()
                 transcription_time = time.time() - start_time
                 
-                # 记录结束 GPU 状态
+                # 记录结束 GPU 和 CPU 状态
+                time.sleep(0.5)  # 等待状态稳定
                 gpu_after = self.get_gpu_status()
                 cpu_after = self.get_cpu_status()
                 
                 # 计算性能指标
                 rtf = transcription_time / duration if duration > 0 else 0
                 
+                # 计算资源变化
+                gpu_mem_before = gpu_before['gpus'][0]['memory_used_mb'] if gpu_before['gpus'] else 0
+                gpu_mem_after = gpu_after['gpus'][0]['memory_used_mb'] if gpu_after['gpus'] else 0
+                gpu_mem_increase = gpu_mem_after - gpu_mem_before
+                
+                cpu_mem_before = cpu_before.get('memory_used_mb', 0)
+                cpu_mem_after = cpu_after.get('memory_used_mb', 0)
+                cpu_mem_increase = cpu_mem_after - cpu_mem_before
+                
                 print(f"  ✅ 转录成功")
                 print(f"     文件大小: {file_size_mb:.2f}MB")
                 print(f"     音频时长: {duration:.2f}s")
                 print(f"     转录耗时: {transcription_time:.2f}s")
                 print(f"     实时因子: {rtf:.2f} (1={1/rtf:.1f}x 实时速度)")
+                print(f"     GPU内存变化: {gpu_mem_before:.0f}MB -> {gpu_mem_after:.0f}MB (+{gpu_mem_increase:.0f}MB)")
+                print(f"     CPU内存变化: {cpu_mem_before:.0f}MB -> {cpu_mem_after:.0f}MB (+{cpu_mem_increase:.0f}MB)")
                 
                 return {
                     "filename": filename,
@@ -138,8 +151,12 @@ class PerformanceReporter:
                     "speed": f"{1/rtf:.1f}x" if rtf > 0 else "N/A",
                     "text_preview": result.get('segments', [{}])[0].get('text', '')[:100] if isinstance(result.get('segments'), list) else '',
                     "language": result.get('language', 'unknown'),
-                    "gpu_memory_before": gpu_before['gpus'][0]['memory_used_mb'] if gpu_before['gpus'] else 0,
-                    "gpu_memory_after": gpu_after['gpus'][0]['memory_used_mb'] if gpu_after['gpus'] else 0,
+                    "gpu_memory_before": gpu_mem_before,
+                    "gpu_memory_after": gpu_mem_after,
+                    "gpu_memory_increase": gpu_mem_increase,
+                    "cpu_memory_before": cpu_mem_before,
+                    "cpu_memory_after": cpu_mem_after,
+                    "cpu_memory_increase": cpu_mem_increase,
                     "gpu_util_max": max([g['gpu_utilization'] for g in gpu_after['gpus']]) if gpu_after['gpus'] else 0,
                     "cpu_percent": cpu_after.get('cpu_percent', 0),
                     "memory_percent": cpu_after.get('memory_percent', 0),
@@ -167,22 +184,24 @@ class PerformanceReporter:
         if gpu_status['available'] and gpu_status['gpus']:
             gpu = gpu_status['gpus'][0]
             report.append(f"- **GPU**: {gpu['name']}\n")
-            report.append(f"- **GPU内存**: {gpu['memory_used_mb']:.0f}MB / {gpu['memory_total_mb']:.0f}MB\n")
+            report.append(f"- **GPU总内存**: {gpu['memory_total_mb']:.0f}MB\n")
+            report.append(f"- **GPU当前占用**: {gpu['memory_used_mb']:.0f}MB\n")
             report.append(f"- **GPU利用率**: {gpu['gpu_utilization']:.1f}%\n")
         
         cpu_status = self.get_cpu_status()
         if cpu_status:
+            report.append(f"- **内存总量**: {cpu_status.get('memory_total_mb', 0):.0f}MB\n")
+            report.append(f"- **内存占用**: {cpu_status.get('memory_used_mb', 0):.0f}MB\n")
+            report.append(f"- **内存使用率**: {cpu_status.get('memory_percent', 0):.1f}%\n")
             report.append(f"- **CPU使用率**: {cpu_status.get('cpu_percent', 0):.1f}%\n")
-            report.append(f"- **内存使用**: {cpu_status.get('memory_used_mb', 0):.0f}MB / {cpu_status.get('memory_total_mb', 0):.0f}MB\n")
         
         report.append("\n## 📈 性能测试结果\n")
-        report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 实时因子 | 处理速度 | 语言 | GPU内存增加 | 最大GPU利用率 |\n")
-        report.append("|--------|---------|--------|-----------|---------|---------|------|-----------|---------------|\n")
+        report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 实时因子 | 处理速度 | GPU内存↑ | CPU内存↑ | GPU利用率 |\n")
+        report.append("|--------|---------|--------|-----------|---------|---------|----------|----------|----------|\n")
         
         for r in results:
             if r:
-                gpu_mem_increase = r['gpu_memory_after'] - r['gpu_memory_before']
-                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['rtf']:.3f} | {r['speed']} | {r['language']} | {gpu_mem_increase:.0f}MB | {r['gpu_util_max']:.1f}% |\n")
+                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['rtf']:.3f} | {r['speed']} | {r['gpu_memory_increase']:.0f}MB | {r['cpu_memory_increase']:.0f}MB | {r['gpu_util_max']:.1f}% |\n")
         
         # 统计
         report.append("\n## 📊 统计汇总\n")
@@ -194,12 +213,30 @@ class PerformanceReporter:
             avg_speed = 1 / avg_rtf if avg_rtf > 0 else 0
             avg_gpu_util = sum(r['gpu_util_max'] for r in valid_results) / len(valid_results)
             
+            # 资源占用统计
+            total_gpu_increase = sum(r['gpu_memory_increase'] for r in valid_results)
+            max_gpu_increase = max(r['gpu_memory_increase'] for r in valid_results)
+            avg_gpu_increase = total_gpu_increase / len(valid_results)
+            
+            total_cpu_increase = sum(r['cpu_memory_increase'] for r in valid_results)
+            max_cpu_increase = max(r['cpu_memory_increase'] for r in valid_results)
+            avg_cpu_increase = total_cpu_increase / len(valid_results)
+            
+            report.append("### 性能指标\n")
             report.append(f"- **总音频时长**: {total_duration:.2f}s\n")
             report.append(f"- **总转录耗时**: {total_time:.2f}s\n")
             report.append(f"- **平均实时因子(RTF)**: {avg_rtf:.3f}\n")
             report.append(f"- **平均处理速度**: {avg_speed:.1f}x 实时速度\n")
-            report.append(f"- **平均GPU利用率**: {avg_gpu_util:.1f}%\n")
             report.append(f"- **文件数**: {len(valid_results)}\n")
+            
+            report.append("\n### 资源占用\n")
+            report.append(f"- **GPU内存增加**:\n")
+            report.append(f"  - 最大: {max_gpu_increase:.0f}MB\n")
+            report.append(f"  - 平均: {avg_gpu_increase:.0f}MB\n")
+            report.append(f"- **CPU内存增加**:\n")
+            report.append(f"  - 最大: {max_cpu_increase:.0f}MB\n")
+            report.append(f"  - 平均: {avg_cpu_increase:.0f}MB\n")
+            report.append(f"- **平均GPU利用率**: {avg_gpu_util:.1f}%\n")
         
         # 转录质量示例
         report.append("\n## 🎯 转录质量示例\n")
