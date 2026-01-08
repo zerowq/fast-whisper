@@ -299,6 +299,10 @@ def main():
     
     comparator = GPUvsCPUComparison()
     
+    print("="*80)
+    print("🔧 阶段 1: 环境准备")
+    print("="*80 + "\n")
+    
     # 检查 GPU 服务
     print("🔍 检查 GPU 服务...")
     if not comparator.check_service(comparator.gpu_url):
@@ -308,23 +312,64 @@ def main():
         sys.exit(1)
     print(f"✅ GPU 服务在线\n")
     
+    # 如果需要 CPU 测试，先启动 CPU 容器
+    cpu_data = None
+    if not args.skip_cpu:
+        print("🔍 检查 CPU 容器...")
+        if not comparator.start_cpu_container():
+            print("❌ 无法启动 CPU 容器，跳过 CPU 测试")
+        else:
+            print("⏳ 等待 CPU 容器完全准备（预热模型）...")
+            time.sleep(10)  # 给 CPU 容器足够时间加载模型
+            
+            # 做一个预热请求确保容器完全就绪
+            try:
+                test_file = comparator.test_files[0]
+                if os.path.exists(test_file):
+                    with open(test_file, 'rb') as f:
+                        files = {'file': f}
+                        requests.post(
+                            f"{comparator.cpu_url}/transcribe",
+                            files=files,
+                            params={'beam_size': 5, 'task': 'transcribe'},
+                            timeout=60
+                        )
+                    print("✅ CPU 容器已预热完成\n")
+            except:
+                pass
+    else:
+        print("⏭️  跳过 CPU 容器启动\n")
+    
+    # 预热 GPU 容器
+    print("🔍 预热 GPU 容器...")
+    try:
+        test_file = comparator.test_files[0]
+        if os.path.exists(test_file):
+            with open(test_file, 'rb') as f:
+                files = {'file': f}
+                requests.post(
+                    f"{comparator.gpu_url}/transcribe",
+                    files=files,
+                    params={'beam_size': 5, 'task': 'transcribe'},
+                    timeout=60
+                )
+            print("✅ GPU 容器已预热完成\n")
+    except:
+        pass
+    
+    # 所有环境准备完成后，开始测试
+    print("="*80)
+    print("🧪 阶段 2: 性能测试（环境已就绪）")
+    print("="*80 + "\n")
+    
     # GPU 测试
     gpu_data = comparator.test_performance(comparator.gpu_url, "gpu")
     
     # CPU 测试
-    if not args.skip_cpu:
-        # 启动 CPU 容器
-        if not comparator.start_cpu_container():
-            print("❌ 无法启动 CPU 容器，跳过 CPU 测试")
-            cpu_data = None
-        else:
-            # 等待 CPU 容器完全准备好
-            print("⏳ 等待 CPU 容器完全准备...")
-            time.sleep(5)
-            cpu_data = comparator.test_performance(comparator.cpu_url, "cpu")
-    else:
-        print("⏭️  跳过 CPU 测试")
-        cpu_data = None
+    if not args.skip_cpu and not comparator.check_service(comparator.cpu_url):
+        print("⚠️  CPU 容器在测试阶段不可用，跳过 CPU 测试")
+    elif not args.skip_cpu:
+        cpu_data = comparator.test_performance(comparator.cpu_url, "cpu")
     
     # 生成报告
     print("\n" + "="*80)
