@@ -17,7 +17,7 @@ class GPUvsCPUComparison:
     
     def __init__(self):
         self.gpu_port = 8898
-        self.cpu_port = 8899
+        self.cpu_port = 8897
         self.gpu_url = f"http://localhost:{self.gpu_port}"
         self.cpu_url = f"http://localhost:{self.cpu_port}"
         self.test_files = [
