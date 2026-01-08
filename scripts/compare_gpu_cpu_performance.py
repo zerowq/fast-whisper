@@ -80,6 +80,27 @@ class GPUvsCPUComparison:
         print("❌ CPU 容器启动超时")
         return False
     
+    def get_resource_usage(self, container_name: str) -> dict:
+        """获取容器资源使用情况"""
+        try:
+            result = subprocess.run(
+                ["docker", "stats", "--no-stream", container_name],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                # 解析 docker stats 输出
+                lines = result.stdout.strip().split('\n')
+                if len(lines) > 1:
+                    # CONTAINER ID   NAME    CPU %    MEM USAGE / LIMIT
+                    parts = lines[1].split()
+                    return {
+                        "cpu_percent": float(parts[2].rstrip('%')),
+                        "memory_usage": parts[3],
+                    }
+        except:
+            pass
+        return {"cpu_percent": 0, "memory_usage": "0B"}
+    
     def test_performance(self, url: str, device: str) -> dict:
         """测试性能"""
         print(f"\n{'='*80}")
@@ -87,6 +108,7 @@ class GPUvsCPUComparison:
         print(f"{'='*80}\n")
         
         results = []
+        container_name = "faster-whisper-asr" if device == "gpu" else "faster-whisper-asr-cpu"
         
         for audio_file in self.test_files:
             if not os.path.exists(audio_file):
@@ -110,6 +132,8 @@ class GPUvsCPUComparison:
             
             # 发送转录请求
             start_time = time.time()
+            resource_before = self.get_resource_usage(container_name)
+            
             try:
                 with open(audio_file, 'rb') as f:
                     files = {'file': f}
@@ -123,9 +147,12 @@ class GPUvsCPUComparison:
                 if response.status_code == 200:
                     result = response.json()
                     transcription_time = time.time() - start_time
+                    resource_after = self.get_resource_usage(container_name)
                     rtf = transcription_time / duration if duration > 0 else 0
                     
                     print(f"  ✅ 转录成功 ({transcription_time:.2f}s)")
+                    print(f"     CPU占用: {resource_after['cpu_percent']:.1f}%")
+                    print(f"     内存占用: {resource_after['memory_usage']}")
                     
                     results.append({
                         "filename": filename,
@@ -134,7 +161,9 @@ class GPUvsCPUComparison:
                         "transcription_time_s": transcription_time,
                         "rtf": rtf,
                         "speed": 1/rtf if rtf > 0 else 0,
-                        "text_preview": result.get('segments', [{}])[0].get('text', '')[:100] if isinstance(result.get('segments'), list) else ''
+                        "text_preview": result.get('segments', [{}])[0].get('text', '')[:100] if isinstance(result.get('segments'), list) else '',
+                        "cpu_percent": resource_after['cpu_percent'],
+                        "memory_usage": resource_after['memory_usage']
                     })
                 else:
                     print(f"  ❌ 转录失败: {response.status_code}")
@@ -186,16 +215,20 @@ class GPUvsCPUComparison:
             # 详细对比表
             report.append("## 📈 详细对比结果\n\n")
             report.append("### CPU 模式\n")
-            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF |\n")
-            report.append("|--------|---------|--------|-----------|---------|-----|\n")
+            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF | CPU占用 | 内存占用 |\n")
+            report.append("|--------|---------|--------|-----------|---------|-----|---------|----------|\n")
             for r in cpu_results:
-                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} |\n")
+                cpu_pct = r.get('cpu_percent', 0)
+                mem_usage = r.get('memory_usage', '0B')
+                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} | {cpu_pct:.1f}% | {mem_usage} |\n")
             
             report.append("\n### GPU 模式\n")
-            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF |\n")
-            report.append("|--------|---------|--------|-----------|---------|-----|\n")
+            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF | CPU占用 | 内存占用 |\n")
+            report.append("|--------|---------|--------|-----------|---------|-----|---------|----------|\n")
             for r in gpu_results:
-                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} |\n")
+                cpu_pct = r.get('cpu_percent', 0)
+                mem_usage = r.get('memory_usage', '0B')
+                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} | {cpu_pct:.1f}% | {mem_usage} |\n")
             
             # 性能评价
             report.append("\n## ✅ 性能评价\n\n")
