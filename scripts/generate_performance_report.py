@@ -108,7 +108,7 @@ class PerformanceReporter:
                 response = requests.post(
                     f"{self.api_url}/transcribe",
                     files=files,
-                    params={'language': '', 'beam_size': 5, 'task': 'transcribe'},
+                    params={'beam_size': 5, 'task': 'transcribe'},
                     timeout=600
                 )
             
