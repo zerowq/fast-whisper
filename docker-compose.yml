@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  faster-whisper-asr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: faster-whisper-asr
+    
+    # GPU 支持
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1  # 使用 1 块 GPU，可改为 all 使用所有 GPU
+              capabilities: [gpu]
+    
+    # 端口映射
+    ports:
+      - "8898:8898"
+    
+    # 环境变量
+    environment:
+      - PORT=8898
+      - HOST=0.0.0.0
+      - DEVICE=cuda
+      - COMPUTE_TYPE=float16
+      - MODEL_SIZE=base
+      - MODEL_PATH=/app/models
+      - LOG_LEVEL=INFO
+      - ENABLE_CORS=true
+      - ENABLE_METRICS=true
+      - METRICS_INTERVAL_SECONDS=60
+    
+    # 卷挂载（可选，用于持久化模型）
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8898/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 可选：添加监控服务
+# 如果需要 Prometheus 监控，可以添加：
+#
+#  prometheus:
+#    image: prom/prometheus:latest
+#    ports:
+#      - "9090:9090"
+#    volumes:
+#      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#    command:
+#      - '--config.file=/etc/prometheus/prometheus.yml'
