@@ -101,6 +101,26 @@ class GPUvsCPUComparison:
             pass
         return {"cpu_percent": 0, "memory_usage": "0B"}
     
+    def get_gpu_usage(self) -> dict:
+        """获取 GPU 使用情况"""
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index,utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                if lines:
+                    parts = lines[0].split(',')
+                    return {
+                        "gpu_utilization": float(parts[1]),
+                        "gpu_memory_used_mb": float(parts[2]),
+                        "gpu_memory_total_mb": float(parts[3])
+                    }
+        except:
+            pass
+        return {"gpu_utilization": 0, "gpu_memory_used_mb": 0, "gpu_memory_total_mb": 0}
+    
     def test_performance(self, url: str, device: str) -> dict:
         """测试性能"""
         print(f"\n{'='*80}")
@@ -133,6 +153,7 @@ class GPUvsCPUComparison:
             # 发送转录请求
             start_time = time.time()
             resource_before = self.get_resource_usage(container_name)
+            gpu_before = self.get_gpu_usage() if device == "gpu" else {}
             
             try:
                 with open(audio_file, 'rb') as f:
@@ -148,11 +169,16 @@ class GPUvsCPUComparison:
                     result = response.json()
                     transcription_time = time.time() - start_time
                     resource_after = self.get_resource_usage(container_name)
+                    gpu_after = self.get_gpu_usage() if device == "gpu" else {}
                     rtf = transcription_time / duration if duration > 0 else 0
                     
                     print(f"  ✅ 转录成功 ({transcription_time:.2f}s)")
                     print(f"     CPU占用: {resource_after['cpu_percent']:.1f}%")
                     print(f"     内存占用: {resource_after['memory_usage']}")
+                    
+                    if device == "gpu" and gpu_after:
+                        print(f"     GPU利用率: {gpu_after['gpu_utilization']:.1f}%")
+                        print(f"     GPU内存: {gpu_after['gpu_memory_used_mb']:.0f}MB / {gpu_after['gpu_memory_total_mb']:.0f}MB")
                     
                     results.append({
                         "filename": filename,
@@ -163,7 +189,10 @@ class GPUvsCPUComparison:
                         "speed": 1/rtf if rtf > 0 else 0,
                         "text_preview": result.get('segments', [{}])[0].get('text', '')[:100] if isinstance(result.get('segments'), list) else '',
                         "cpu_percent": resource_after['cpu_percent'],
-                        "memory_usage": resource_after['memory_usage']
+                        "memory_usage": resource_after['memory_usage'],
+                        "gpu_utilization": gpu_after.get('gpu_utilization', 0) if device == "gpu" else 0,
+                        "gpu_memory_used_mb": gpu_after.get('gpu_memory_used_mb', 0) if device == "gpu" else 0,
+                        "gpu_memory_total_mb": gpu_after.get('gpu_memory_total_mb', 0) if device == "gpu" else 0
                     })
                 else:
                     print(f"  ❌ 转录失败: {response.status_code}")
@@ -223,12 +252,14 @@ class GPUvsCPUComparison:
                 report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} | {cpu_pct:.1f}% | {mem_usage} |\n")
             
             report.append("\n### GPU 模式\n")
-            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF | CPU占用 | 内存占用 |\n")
-            report.append("|--------|---------|--------|-----------|---------|-----|---------|----------|\n")
+            report.append("| 文件名 | 大小(MB) | 时长(s) | 转录耗时(s) | 处理速度 | RTF | CPU占用 | 内存占用 | GPU利用率 | GPU显存 |\n")
+            report.append("|--------|---------|--------|-----------|---------|-----|---------|----------|----------|----------|\n")
             for r in gpu_results:
                 cpu_pct = r.get('cpu_percent', 0)
                 mem_usage = r.get('memory_usage', '0B')
-                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} | {cpu_pct:.1f}% | {mem_usage} |\n")
+                gpu_util = r.get('gpu_utilization', 0)
+                gpu_mem = r.get('gpu_memory_used_mb', 0)
+                report.append(f"| {r['filename']} | {r['file_size_mb']:.2f} | {r['duration_s']:.2f} | {r['transcription_time_s']:.2f} | {r['speed']:.1f}x | {r['rtf']:.3f} | {cpu_pct:.1f}% | {mem_usage} | {gpu_util:.1f}% | {gpu_mem:.0f}MB |\n")
             
             # 性能评价
             report.append("\n## ✅ 性能评价\n\n")
