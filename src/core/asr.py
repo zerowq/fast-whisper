@@ -157,7 +157,7 @@ class ASRService:
                 self.model_size, 
                 device=device, 
                 compute_type=compute_type,
-                local_files_only=True
+                local_files_only=True  # 使用本地缓存模型
             )
             
             self.current_device = device
@@ -177,7 +177,7 @@ class ASRService:
                         self.model_size,
                         device="cpu",
                         compute_type="int8",
-                        local_files_only=True
+                        local_files_only=False
                     )
                     
                     self.current_device = "cpu"
