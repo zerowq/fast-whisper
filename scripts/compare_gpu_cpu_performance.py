@@ -293,6 +293,8 @@ def main():
     
     parser = argparse.ArgumentParser(description="GPU vs CPU 性能对比测试")
     parser.add_argument("--skip-cpu", action="store_true", help="跳过 CPU 测试（仅测试 GPU）")
+    parser.add_argument("--test-order", choices=["gpu-first", "cpu-first"], default="gpu-first", 
+                       help="测试顺序: gpu-first=先测GPU后测CPU, cpu-first=先测CPU后测GPU")
     parser.add_argument("--output", default="gpu_cpu_comparison_report.md", help="报告输出文件")
     
     args = parser.parse_args()
@@ -360,16 +362,28 @@ def main():
     # 所有环境准备完成后，开始测试
     print("="*80)
     print("🧪 阶段 2: 性能测试（环境已就绪）")
+    print(f"📋 测试顺序: {args.test_order}")
     print("="*80 + "\n")
     
-    # GPU 测试
-    gpu_data = comparator.test_performance(comparator.gpu_url, "gpu")
-    
-    # CPU 测试
-    if not args.skip_cpu and not comparator.check_service(comparator.cpu_url):
-        print("⚠️  CPU 容器在测试阶段不可用，跳过 CPU 测试")
-    elif not args.skip_cpu:
-        cpu_data = comparator.test_performance(comparator.cpu_url, "cpu")
+    # 根据指定顺序测试
+    if args.test_order == "gpu-first":
+        # GPU 优先
+        gpu_data = comparator.test_performance(comparator.gpu_url, "gpu")
+        
+        if not args.skip_cpu and not comparator.check_service(comparator.cpu_url):
+            print("⚠️  CPU 容器在测试阶段不可用，跳过 CPU 测试")
+        elif not args.skip_cpu:
+            cpu_data = comparator.test_performance(comparator.cpu_url, "cpu")
+    else:
+        # CPU 优先
+        if not args.skip_cpu and not comparator.check_service(comparator.cpu_url):
+            print("⚠️  CPU 容器在测试阶段不可用，跳过 CPU 测试")
+            cpu_data = None
+        elif not args.skip_cpu:
+            cpu_data = comparator.test_performance(comparator.cpu_url, "cpu")
+        
+        # 然后测试 GPU
+        gpu_data = comparator.test_performance(comparator.gpu_url, "gpu")
     
     # 生成报告
     print("\n" + "="*80)
